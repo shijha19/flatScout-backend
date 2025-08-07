@@ -12,7 +12,8 @@ router.get(
   (req, res) => {
     const token = req.user.token;
     // Redirect to frontend with JWT token as query param
-    res.redirect(`http://localhost:5173/oauth-success?token=${token}`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/oauth-success?token=${token}`);
   }
 );
 
