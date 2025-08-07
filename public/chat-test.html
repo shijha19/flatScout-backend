@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Test Utility</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Chat Test Utility</h1>
+    <p>This utility helps you create test connections between users so you can test the chat feature.</p>
+    
+    <form id="connectionForm">
+        <div class="form-group">
+            <label for="userEmail1">User 1 Email:</label>
+            <input type="email" id="userEmail1" required placeholder="user1@example.com">
+        </div>
+        
+        <div class="form-group">
+            <label for="userEmail2">User 2 Email:</label>
+            <input type="email" id="userEmail2" required placeholder="user2@example.com">
+        </div>
+        
+        <button type="submit">Create Connection</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('connectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userEmail1 = document.getElementById('userEmail1').value;
+            const userEmail2 = document.getElementById('userEmail2').value;
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const response = await fetch('/api/test/create-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userEmail1, userEmail2 })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">
+                        <strong>Success!</strong> Connection created between ${data.connection.from} and ${data.connection.to}
+                    </div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+                        <strong>Error:</strong> ${data.message}
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">
+                    <strong>Error:</strong> ${error.message}
+                </div>`;
+            }
+        });
+    </script>
+</body>
+</html>
