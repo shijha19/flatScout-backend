@@ -550,4 +550,44 @@ router.get('/analytics', adminOnly, async (req, res) => {
   }
 });
 
+// Update report status
+router.put('/reports/:id/status', adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be pending, reviewed, resolved, or dismissed.' });
+    }
+
+    const report = await Report.findById(req.params.id);
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found.' });
+    }
+
+    const oldStatus = report.status;
+    report.status = status;
+    await report.save();
+
+    // Log the activity
+    await LoggingService.logActivity({
+      userId: req.user._id,
+      userEmail: req.user.email,
+      userName: req.user.name,
+      action: 'ADMIN_REPORT_STATUS_UPDATED',
+      description: `Updated report status from ${oldStatus} to ${status}`,
+      metadata: {
+        reportId: report._id,
+        oldStatus,
+        newStatus: status,
+        reportReason: report.reason
+      },
+      req
+    });
+
+    res.json({ message: 'Report status updated successfully', report });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 export default router;

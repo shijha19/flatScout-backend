@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  hasCompletedPreferences: {
+    type: Boolean,
+    default: false,
+  },
   updatedAt: {
     type: Date,
     default: Date.now,

@@ -26,10 +26,12 @@ passport.use(new GoogleStrategy({
       }
       // Create payload for JWT
       const userPayload = {
+        _id: user._id,
         name: user.name,
         email: user.email,
         picture: profile.photos[0]?.value,
-        googleId: user.googleId
+        googleId: user.googleId,
+        hasCompletedPreferences: user.hasCompletedPreferences
       };
       // Generate JWT token
       const token = jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn: '7d' });

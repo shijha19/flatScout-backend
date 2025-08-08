@@ -9,7 +9,11 @@ const reportSchema = new mongoose.Schema({
   listingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FlatListing',
-    required: true
+    required: false // Made optional since users can report external URLs
+  },
+  listingUrl: {
+    type: String,
+    required: false // For external listing URLs
   },
   reason: {
     type: String,
@@ -19,6 +23,24 @@ const reportSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  category: {
+    type: String,
+    enum: ['listing', 'user', 'payment', 'safety', 'technical'],
+    default: 'listing'
+  },
+  evidence: {
+    type: String,
+    default: ''
+  },
+  contactAttempted: {
+    type: Boolean,
+    default: false
   },
   status: {
     type: String,

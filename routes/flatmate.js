@@ -225,8 +225,13 @@ router.get('/matches/:userId', async (req, res) => {
         user = await User.findOne({ email: profile.userId });
       }
 
+      // If no user found, skip this profile (user was deleted)
+      if (!user) {
+        return null;
+      }
+
       // Additional check: if user found, verify they're not in the connections list by User ObjectId
-      if (user && currentUser && currentUser.connections && currentUser.connections.length > 0) {
+      if (currentUser && currentUser.connections && currentUser.connections.length > 0) {
         const isConnectedByUserId = currentUser.connections.some(connId => connId.equals(user._id));
         if (isConnectedByUserId) {
           return null; // Skip this profile as it belongs to a connected user
@@ -235,17 +240,15 @@ router.get('/matches/:userId', async (req, res) => {
 
       // Return profile with the correct user _id for navigation
       const profileObj = profile.toObject();
-      if (user) {
-        profileObj.actualUserId = user._id.toString();
-        // If profile.photoUrl is missing or empty, use user's profileImage
-        if ((!profileObj.photoUrl || profileObj.photoUrl === '') && user.profileImage) {
-          profileObj.photoUrl = user.profileImage;
-        }
+      profileObj.actualUserId = user._id.toString();
+      // If profile.photoUrl is missing or empty, use user's profileImage
+      if ((!profileObj.photoUrl || profileObj.photoUrl === '') && user.profileImage) {
+        profileObj.photoUrl = user.profileImage;
       }
       return profileObj;
     }));
-    
-    // Filter out null values (connected users that were skipped)
+
+    // Filter out null values (connected users or deleted users that were skipped)
     const finalProfiles = enhancedProfiles.filter(profile => profile !== null);
     res.json(finalProfiles);
   } catch (err) {

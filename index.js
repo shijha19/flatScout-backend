@@ -15,6 +15,7 @@ import connectedUsersRoutes from './routes/connectedUsers.js';
 import bookingRoutes from './routes/booking.js';
 import testEmailRoutes from './routes/testEmail.js';
 import adminRoutes from './routes/adminRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import syncRoutes from './routes/syncRoutes.js';
 import { createTestConnections } from './controllers/testController.js';
@@ -62,6 +63,7 @@ app.use('/api/connected-users', connectedUsersRoutes);
 app.use('/api/booking', bookingRoutes);
 app.use('/api/test', testEmailRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/sync', syncRoutes);
 
 // Development-only test endpoints

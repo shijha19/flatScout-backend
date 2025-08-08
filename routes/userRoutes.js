@@ -336,4 +336,79 @@ router.put("/make-admin/:email", async (req, res) => {
   }
 });
 
+// Mark user as having completed preferences
+router.put("/preferences-completed", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const user = await User.findOneAndUpdate(
+      { email },
+      { hasCompletedPreferences: true },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Log the activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'PREFERENCES_COMPLETED',
+      description: `User completed flatmate preferences: ${user.name} (${user.email})`,
+      metadata: {},
+      req
+    });
+    
+    res.json({ message: "Preferences marked as completed", user });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// Check if user has completed preferences (with auto-migration for existing users)
+router.get("/preferences-status/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // If user hasn't completed preferences flag, check if they have a flatmate profile
+    if (!user.hasCompletedPreferences) {
+      const FlatmateProfile = (await import('../models/FlatmateProfile.js')).default;
+      const profile = await FlatmateProfile.findOne({ 
+        $or: [
+          { userId: user._id.toString() },
+          { userEmail: user.email },
+          { userId: user.email }
+        ]
+      });
+
+      if (profile) {
+        // User has a profile, mark them as completed
+        user.hasCompletedPreferences = true;
+        await user.save();
+        
+        return res.json({ 
+          hasCompletedPreferences: true, 
+          migrated: true,
+          message: "User had existing profile, marked as completed" 
+        });
+      }
+    }
+    
+    res.json({ hasCompletedPreferences: user.hasCompletedPreferences });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 export default router;
