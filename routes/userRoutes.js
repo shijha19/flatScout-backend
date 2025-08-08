@@ -1,5 +1,6 @@
 import express from "express";
 import User from "../models/user.models.js";
+import LoggingService from "../services/loggingService.js";
 
 const router = express.Router();
 
@@ -105,6 +106,20 @@ router.put("/change-password", async (req, res) => {
     }
     user.password = newPassword;
     await user.save();
+
+    // Log the password change activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'USER_PASSWORD_CHANGED',
+      description: `User changed password: ${user.name} (${user.email})`,
+      metadata: {
+        timestamp: new Date()
+      },
+      req
+    });
+
     res.status(200).json({ message: "Password changed successfully." });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
@@ -145,6 +160,20 @@ router.post("/signup", async (req, res) => {
     }
     user = new User({ email, name, password });
     await user.save();
+
+    // Log the registration activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'USER_REGISTERED',
+      description: `New user registered: ${user.name} (${user.email})`,
+      metadata: {
+        registrationMethod: 'email'
+      },
+      req
+    });
+
     res
       .status(201)
       .json({ message: "Signup successful. You can now log in.", user });
@@ -179,6 +208,20 @@ router.post("/login", async (req, res) => {
           message: "Invalid credentials. Please check your name and password.",
         });
     }
+
+    // Log the login activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'USER_LOGIN',
+      description: `User logged in: ${user.name} (${user.email})`,
+      metadata: {
+        loginMethod: 'email'
+      },
+      req
+    });
+
     // User exists and credentials match, allow login
     res.status(200).json({ message: "Login successful", user });
   } catch (err) {
@@ -200,15 +243,75 @@ router.put("/profile", async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
+    
+    const oldData = {
+      name: user.name,
+      phone: user.phone,
+      bio: user.bio,
+      location: user.location,
+      profileImage: user.profileImage
+    };
+
     if (name) user.name = name;
     if (phone) user.phone = phone;
     if (bio) user.bio = bio;
     if (location) user.location = location;
     if (profileImage) user.profileImage = profileImage;
     await user.save();
+
+    // Log the profile update activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'USER_PROFILE_UPDATED',
+      description: `User updated profile: ${user.name} (${user.email})`,
+      metadata: {
+        updatedFields: Object.keys(req.body).filter(key => key !== 'email'),
+        oldData,
+        newData: {
+          name: user.name,
+          phone: user.phone,
+          bio: user.bio,
+          location: user.location,
+          profileImage: user.profileImage
+        }
+      },
+      req
+    });
+
     res.status(200).json({ message: "Profile updated successfully.", user });
   } catch (err) {
     console.error("Error in PUT /profile:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// Logout route (for logging purposes)
+router.post("/logout", async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email is required." });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (user) {
+      // Log the logout activity
+      await LoggingService.logActivity({
+        userId: user._id,
+        userEmail: user.email,
+        userName: user.name,
+        action: 'USER_LOGOUT',
+        description: `User logged out: ${user.name} (${user.email})`,
+        metadata: {
+          timestamp: new Date()
+        },
+        req
+      });
+    }
+    res.status(200).json({ message: "Logout successful" });
+  } catch (err) {
+    console.error("Error in /logout:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });

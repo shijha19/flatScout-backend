@@ -5,6 +5,8 @@ import FlatmateProfile from '../models/FlatmateProfile.js';
 import Booking from '../models/booking.models.js';
 import ConnectionRequest from '../models/connectionRequest.models.js';
 import Report from '../models/report.models.js';
+import ActivityLog from '../models/activityLog.models.js';
+import LoggingService from '../services/loggingService.js';
 import { adminOnly } from '../middlewares/adminAuth.js';
 
 const router = express.Router();
@@ -18,6 +20,7 @@ router.get('/dashboard-stats', adminOnly, async (req, res) => {
     const totalBookings = await Booking.countDocuments();
     const totalReports = await Report.countDocuments();
     const pendingConnections = await ConnectionRequest.countDocuments({ status: 'pending' });
+    const totalActivities = await ActivityLog.countDocuments();
 
     // Recent activity
     const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5);
@@ -40,11 +43,22 @@ router.get('/dashboard-stats', adminOnly, async (req, res) => {
     const newBookingsThisMonth = await Booking.countDocuments({ 
       createdAt: { $gte: thirtyDaysAgo } 
     });
+    const activitiesThisMonth = await ActivityLog.countDocuments({
+      createdAt: { $gte: thirtyDaysAgo }
+    });
 
     // Booking status breakdown
     const confirmedBookings = await Booking.countDocuments({ status: 'confirmed' });
     const pendingBookings = await Booking.countDocuments({ status: 'pending' });
     const cancelledBookings = await Booking.countDocuments({ status: 'cancelled' });
+
+    // Get activity stats
+    const activityStats = await LoggingService.getActivityStats(30);
+    const recentActivities = await LoggingService.getRecentActivities(10);
+
+    // User role breakdown
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    const regularUserCount = await User.countDocuments({ role: 'user' });
 
     res.json({
       totalStats: {
@@ -53,12 +67,16 @@ router.get('/dashboard-stats', adminOnly, async (req, res) => {
         totalFlatmates,
         totalBookings,
         totalReports,
-        pendingConnections
+        pendingConnections,
+        totalActivities,
+        adminCount,
+        regularUserCount
       },
       monthlyStats: {
         newUsersThisMonth,
         newFlatsThisMonth,
-        newBookingsThisMonth
+        newBookingsThisMonth,
+        activitiesThisMonth
       },
       bookingStats: {
         confirmed: confirmedBookings,
@@ -70,10 +88,13 @@ router.get('/dashboard-stats', adminOnly, async (req, res) => {
           _id: user._id,
           name: user.name,
           email: user.email,
+          role: user.role,
           createdAt: user.createdAt
         })),
-        recentBookings
-      }
+        recentBookings,
+        recentActivities
+      },
+      activityStats
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -99,6 +120,7 @@ router.get('/users', adminOnly, async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .select('-password')
       .populate('connections', 'name email');
 
     const totalUsers = await User.countDocuments(searchQuery);
@@ -111,6 +133,119 @@ router.get('/users', adminOnly, async (req, res) => {
         total: totalUsers,
         pages: Math.ceil(totalUsers / limit)
       }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get activity logs with pagination
+router.get('/activity-logs', adminOnly, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const action = req.query.action || '';
+    const userId = req.query.userId || '';
+
+    let searchQuery = {};
+    if (action) searchQuery.action = action;
+    if (userId) searchQuery.userId = userId;
+
+    const activities = await ActivityLog.find(searchQuery)
+      .populate('userId', 'name email role')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalActivities = await ActivityLog.countDocuments(searchQuery);
+
+    res.json({
+      activities,
+      pagination: {
+        page,
+        limit,
+        total: totalActivities,
+        pages: Math.ceil(totalActivities / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get system metrics
+router.get('/system-metrics', adminOnly, async (req, res) => {
+  try {
+    const activityStats = await LoggingService.getActivityStats(30);
+    const hourlyData = await LoggingService.getHourlyActivityData(7);
+    
+    // User growth over time
+    const userGrowth = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+      
+      const count = await User.countDocuments({
+        createdAt: { $gte: startOfDay, $lt: endOfDay }
+      });
+      
+      userGrowth.push({
+        date: startOfDay.toISOString().split('T')[0],
+        count
+      });
+    }
+
+    // Most active users (by activity logs)
+    const activeUsers = await ActivityLog.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          activityCount: { $sum: 1 },
+          lastActivity: { $max: '$createdAt' }
+        }
+      },
+      {
+        $sort: { activityCount: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          userId: '$_id',
+          name: '$user.name',
+          email: '$user.email',
+          role: '$user.role',
+          activityCount: 1,
+          lastActivity: 1
+        }
+      }
+    ]);
+
+    res.json({
+      activityStats,
+      hourlyData,
+      userGrowth,
+      activeUsers
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -229,17 +364,37 @@ router.put('/users/:id/role', adminOnly, async (req, res) => {
       return res.status(400).json({ message: 'Invalid role. Must be user or admin.' });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    );
-
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    res.json({ message: 'User role updated successfully', user });
+    const oldRole = user.role;
+    user.role = role;
+    await user.save();
+
+    // Log the activity
+    await LoggingService.logActivity({
+      userId: req.user._id,
+      userEmail: req.user.email,
+      userName: req.user.name,
+      action: role === 'admin' ? 'ADMIN_USER_PROMOTED' : 'ADMIN_USER_DEMOTED',
+      description: `${role === 'admin' ? 'Promoted' : 'Demoted'} user ${user.name} (${user.email}) ${role === 'admin' ? 'to admin' : 'to regular user'}`,
+      metadata: {
+        targetUserId: user._id,
+        targetUserEmail: user.email,
+        oldRole,
+        newRole: role
+      },
+      req
+    });
+
+    res.json({ message: 'User role updated successfully', user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }});
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -248,11 +403,35 @@ router.put('/users/:id/role', adminOnly, async (req, res) => {
 // Delete user
 router.delete('/users/:id', adminOnly, async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
+
+    // Prevent admins from deleting themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Cannot delete your own account.' });
+    }
+
+    // Log the activity before deletion
+    await LoggingService.logActivity({
+      userId: req.user._id,
+      userEmail: req.user.email,
+      userName: req.user.name,
+      action: 'ADMIN_USER_DELETED',
+      description: `Deleted user ${user.name} (${user.email})`,
+      metadata: {
+        deletedUserId: user._id,
+        deletedUserEmail: user.email,
+        deletedUserName: user.name,
+        deletedUserRole: user.role
+      },
+      req
+    });
+
+    // Delete the user
+    await User.findByIdAndDelete(req.params.id);
 
     // Also delete related data
     await FlatmateProfile.findOneAndDelete({ userId: req.params.id });
