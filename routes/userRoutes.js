@@ -145,12 +145,20 @@ router.get("/profile", async (req, res) => {
 
 // Signup route: create user in MongoDB if not exists
 router.post("/signup", async (req, res) => {
-  const { email, name, password } = req.body;
-  if (!email || !name || !password) {
+  const { email, name, password, userType } = req.body;
+  if (!email || !name || !password || !userType) {
     return res
       .status(400)
-      .json({ message: "Email, name, and password are required." });
+      .json({ message: "Email, name, password, and user type are required." });
   }
+  
+  // Validate userType
+  if (!['flat_owner', 'flat_finder'].includes(userType)) {
+    return res
+      .status(400)
+      .json({ message: "User type must be either 'flat_owner' or 'flat_finder'." });
+  }
+  
   try {
     let user = await User.findOne({ email });
     if (user) {
@@ -158,7 +166,7 @@ router.post("/signup", async (req, res) => {
         .status(409)
         .json({ message: "User already exists. Please log in." });
     }
-    user = new User({ email, name, password });
+    user = new User({ email, name, password, userType });
     await user.save();
 
     // Log the registration activity
@@ -167,9 +175,10 @@ router.post("/signup", async (req, res) => {
       userEmail: user.email,
       userName: user.name,
       action: 'USER_REGISTERED',
-      description: `New user registered: ${user.name} (${user.email})`,
+      description: `New user registered: ${user.name} (${user.email}) as ${userType}`,
       metadata: {
-        registrationMethod: 'email'
+        registrationMethod: 'email',
+        userType: userType
       },
       req
     });

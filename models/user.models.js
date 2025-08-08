@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  userType: {
+    type: String,
+    enum: ["flat_owner", "flat_finder"],
+    required: true,
+    default: "flat_finder",
+  },
   hasCompletedPreferences: {
     type: Boolean,
     default: false,
