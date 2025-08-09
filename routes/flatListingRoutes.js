@@ -95,4 +95,105 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Add a review to a flat listing
+router.post('/:id/reviews', async (req, res) => {
+  try {
+    const { reviewerName, reviewerEmail, rating, comment } = req.body;
+    
+    // Validate required fields
+    if (!reviewerName || !reviewerEmail || !rating || !comment) {
+      return res.status(400).json({ message: 'All review fields are required' });
+    }
+
+    // Validate rating range
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    const flat = await FlatListing.findById(req.params.id);
+    if (!flat) {
+      return res.status(404).json({ message: 'Flat not found' });
+    }
+
+    // Check if user has already reviewed this flat
+    const existingReview = flat.reviews.find(review => review.reviewerEmail === reviewerEmail);
+    if (existingReview) {
+      return res.status(400).json({ message: 'You have already reviewed this property' });
+    }
+
+    // Add the review
+    const newReview = {
+      reviewerName,
+      reviewerEmail,
+      rating: Number(rating),
+      comment,
+      reviewDate: new Date()
+    };
+
+    flat.reviews.push(newReview);
+
+    // Update average rating and total reviews
+    flat.totalReviews = flat.reviews.length;
+    const totalRating = flat.reviews.reduce((sum, review) => sum + review.rating, 0);
+    flat.averageRating = Math.round((totalRating / flat.totalReviews) * 10) / 10; // Round to 1 decimal
+
+    await flat.save();
+
+    // Log the review activity
+    try {
+      const user = await User.findOne({ email: reviewerEmail });
+      if (user) {
+        await LoggingService.logActivity({
+          userId: user._id,
+          userEmail: user.email,
+          userName: user.name,
+          action: 'REVIEW_ADDED',
+          description: `Added review for flat: ${flat.title} in ${flat.location}`,
+          metadata: {
+            flatId: flat._id,
+            flatTitle: flat.title,
+            rating: rating,
+            reviewText: comment.substring(0, 100) + (comment.length > 100 ? '...' : '')
+          },
+          req
+        });
+      }
+    } catch (logError) {
+      console.error('Error logging review addition:', logError);
+    }
+
+    res.status(201).json({ 
+      message: 'Review added successfully', 
+      review: newReview,
+      averageRating: flat.averageRating,
+      totalReviews: flat.totalReviews
+    });
+  } catch (err) {
+    console.error('Add review error:', err);
+    res.status(500).json({ message: 'Failed to add review', error: err.message });
+  }
+});
+
+// Get reviews for a flat listing
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const flat = await FlatListing.findById(req.params.id).select('reviews averageRating totalReviews');
+    if (!flat) {
+      return res.status(404).json({ message: 'Flat not found' });
+    }
+
+    // Sort reviews by newest first
+    const sortedReviews = flat.reviews.sort((a, b) => new Date(b.reviewDate) - new Date(a.reviewDate));
+
+    res.status(200).json({ 
+      reviews: sortedReviews,
+      averageRating: flat.averageRating,
+      totalReviews: flat.totalReviews
+    });
+  } catch (err) {
+    console.error('Get reviews error:', err);
+    res.status(500).json({ message: 'Failed to fetch reviews', error: err.message });
+  }
+});
+
 export default router;
