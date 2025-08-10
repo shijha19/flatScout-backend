@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/user.models.js";
 import ConnectionRequest from "../models/connectionRequest.models.js";
+import NotificationService from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -81,6 +82,14 @@ router.post("/send-request", async (req, res) => {
 
     await connectionRequest.save();
 
+    // Send notification to the recipient
+    try {
+      await NotificationService.sendConnectionRequest(fromUserObjId, toUserObjId, connectionRequest._id);
+    } catch (notificationError) {
+      console.error('Error sending connection request notification:', notificationError);
+      // Don't fail the request if notification fails
+    }
+
     res.status(200).json({ 
       message: "Connection request sent successfully.",
       request: connectionRequest
@@ -136,6 +145,14 @@ router.post("/accept-request", async (req, res) => {
     if (!fromUser.connections.includes(user._id)) {
       fromUser.connections.push(user._id);
       await fromUser.save();
+    }
+
+    // Send notification to the person who sent the request
+    try {
+      await NotificationService.sendConnectionAccepted(user._id, connectionRequest.fromUser._id);
+    } catch (notificationError) {
+      console.error('Error sending connection accepted notification:', notificationError);
+      // Don't fail the request if notification fails
     }
 
     res.status(200).json({ 

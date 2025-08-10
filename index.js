@@ -9,7 +9,7 @@ import userRoutes from './routes/userRoutes.js';
 import flatListingRoutes from './routes/flatListingRoutes.js';
 import flatmateRoutes from './routes/flatmate.js';
 import authRoutes from './routes/auth.js';
-import notificationRoutes from './routes/notification.js';
+import legacyNotificationRoutes from './routes/notification.js';
 import connectionRequestRoutes from './routes/connectionRequest.js';
 import connectedUsersRoutes from './routes/connectedUsers.js';
 import bookingRoutes from './routes/booking.js';
@@ -18,6 +18,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import syncRoutes from './routes/syncRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import wishlistRoutes from './routes/wishlistRoutes.js';
 import { createTestConnections } from './controllers/testController.js';
 import './config/passport.js';
 dotenv.config();
@@ -56,7 +58,7 @@ app.use('/api/pg', pgRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/flats', flatListingRoutes);
 app.use('/api/flatmates', flatmateRoutes);
-app.use('/api/notification', notificationRoutes);
+app.use('/api/notification', legacyNotificationRoutes);
 app.use('/api/connection', connectionRequestRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/connected-users', connectedUsersRoutes);
@@ -65,6 +67,8 @@ app.use('/api/test', testEmailRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Development-only test endpoints
 if (process.env.NODE_ENV !== 'production') {

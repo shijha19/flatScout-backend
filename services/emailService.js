@@ -20,6 +20,34 @@ const createTransporter = () => {
   });
 };
 
+// Generic email sending function
+export const sendEmail = async ({ to, subject, text, html }) => {
+  try {
+    const transporter = createTransporter();
+    
+    // If no email configuration, return early with warning
+    if (!transporter) {
+      console.warn('📧 Email not configured - email not sent');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || '"FlatScout" <noreply@flatscout.com>',
+      to,
+      subject,
+      text,
+      html
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Send booking notification to flat owner
 export const sendBookingNotification = async (ownerEmail, bookingDetails) => {
   try {
