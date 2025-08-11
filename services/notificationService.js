@@ -349,7 +349,14 @@ class NotificationService {
    */
   static async sendConnectionRequest(fromUserId, toUserId, connectionRequestId) {
     const fromUser = await User.findById(fromUserId);
-    return this.createNotification({
+    console.log('Creating connection request notification with:', {
+      fromUserId,
+      toUserId,
+      connectionRequestId,
+      fromUserName: fromUser?.name
+    });
+    
+    const notification = await this.createNotification({
       userId: toUserId,
       type: 'connection_request',
       title: 'New Connection Request',
@@ -362,6 +369,9 @@ class NotificationService {
         connectionRequestId: connectionRequestId
       }
     });
+    
+    console.log('Created notification:', JSON.stringify(notification, null, 2));
+    return notification;
   }
 
   static async sendConnectionAccepted(fromUserId, toUserId) {

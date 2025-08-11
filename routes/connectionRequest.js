@@ -103,9 +103,13 @@ router.post("/send-request", async (req, res) => {
 
 // Accept a connection request
 router.post("/accept-request", async (req, res) => {
+  console.log('=== ACCEPT REQUEST ENDPOINT HIT ===');
+  console.log('Request body:', req.body);
+  
   const { requestId, userEmail } = req.body;
   
   if (!requestId || !userEmail) {
+    console.log('Missing required fields:', { requestId, userEmail });
     return res.status(400).json({ message: "requestId and userEmail are required." });
   }
 

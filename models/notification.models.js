@@ -75,6 +75,10 @@ const notificationSchema = new mongoose.Schema({
     relatedBooking: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking'
+    },
+    connectionRequestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ConnectionRequest'
     }
   }
 }, {
