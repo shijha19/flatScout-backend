@@ -90,6 +90,67 @@ router.get("/connections", async (req, res) => {
   }
 });
 
+// Remove a connection
+router.delete("/connections", async (req, res) => {
+  const { email, remove } = req.body;
+  if (!email || !remove) {
+    return res.status(400).json({ message: "Email and remove (connection ID/email) are required." });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found." });
+    
+    const mongoose = (await import('mongoose')).default;
+    
+    let userToRemove;
+    let connectionToRemoveId;
+    
+    // Try to find the connection to remove by ID or email
+    if (mongoose.Types.ObjectId.isValid(remove)) {
+      // Remove by ObjectId
+      connectionToRemoveId = new mongoose.Types.ObjectId(remove);
+      userToRemove = await User.findById(connectionToRemoveId);
+    } else {
+      // Remove by email
+      userToRemove = await User.findOne({ email: remove });
+      if (userToRemove) {
+        connectionToRemoveId = userToRemove._id;
+      }
+    }
+    
+    if (!userToRemove) {
+      return res.status(404).json({ message: "Connection to remove not found." });
+    }
+    
+    // Remove the connection from both users (bidirectional removal)
+    user.connections = user.connections.filter(connId => !connId.equals(connectionToRemoveId));
+    userToRemove.connections = userToRemove.connections.filter(connId => !connId.equals(user._id));
+    
+    await user.save();
+    await userToRemove.save();
+    
+    // Log the removal activity
+    await LoggingService.logActivity({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'CONNECTION_REMOVED',
+      description: `User removed connection: ${user.name} (${user.email}) removed connection with ${userToRemove.name} (${userToRemove.email})`,
+      metadata: {
+        removedConnection: remove,
+        removedUserName: userToRemove.name,
+        removedUserEmail: userToRemove.email,
+        timestamp: new Date()
+      },
+      req
+    });
+
+    res.status(200).json({ message: "Connection removed successfully.", connections: user.connections });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
 // Change password route
 router.put("/change-password", async (req, res) => {
   const { email, oldPassword, newPassword } = req.body;

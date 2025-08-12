@@ -98,16 +98,35 @@ router.get('/:id', async (req, res) => {
 // Add a review to a flat listing
 router.post('/:id/reviews', async (req, res) => {
   try {
-    const { reviewerName, reviewerEmail, rating, comment } = req.body;
+    const { 
+      reviewerName, 
+      reviewerEmail, 
+      rating, 
+      comment,
+      cleanlinessRating,
+      locationRating,
+      valueForMoneyRating,
+      landlordRating,
+      pros,
+      cons,
+      stayDuration,
+      wouldRecommend,
+      photos
+    } = req.body;
     
     // Validate required fields
     if (!reviewerName || !reviewerEmail || !rating || !comment) {
-      return res.status(400).json({ message: 'All review fields are required' });
+      return res.status(400).json({ message: 'Required review fields are missing' });
     }
 
     // Validate rating range
     if (rating < 1 || rating > 5) {
       return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    // Validate comment length
+    if (comment.trim().length < 10) {
+      return res.status(400).json({ message: 'Comment must be at least 10 characters long' });
     }
 
     const flat = await FlatListing.findById(req.params.id);
@@ -121,12 +140,21 @@ router.post('/:id/reviews', async (req, res) => {
       return res.status(400).json({ message: 'You have already reviewed this property' });
     }
 
-    // Add the review
+    // Create the enhanced review
     const newReview = {
       reviewerName,
       reviewerEmail,
       rating: Number(rating),
-      comment,
+      comment: comment.trim(),
+      cleanlinessRating: Number(cleanlinessRating) || 5,
+      locationRating: Number(locationRating) || 5,
+      valueForMoneyRating: Number(valueForMoneyRating) || 5,
+      landlordRating: Number(landlordRating) || 5,
+      pros: pros?.trim() || '',
+      cons: cons?.trim() || '',
+      stayDuration: stayDuration || '',
+      wouldRecommend: wouldRecommend !== false, // default to true
+      photos: photos || [],
       reviewDate: new Date()
     };
 
@@ -134,8 +162,20 @@ router.post('/:id/reviews', async (req, res) => {
 
     // Update average rating and total reviews
     flat.totalReviews = flat.reviews.length;
-    const totalRating = flat.reviews.reduce((sum, review) => sum + review.rating, 0);
-    flat.averageRating = Math.round((totalRating / flat.totalReviews) * 10) / 10; // Round to 1 decimal
+    
+    // Calculate weighted average including category ratings
+    const totalRating = flat.reviews.reduce((sum, review) => {
+      const categoryAverage = (
+        review.rating +
+        (review.cleanlinessRating || review.rating) +
+        (review.locationRating || review.rating) +
+        (review.valueForMoneyRating || review.rating) +
+        (review.landlordRating || review.rating)
+      ) / 5;
+      return sum + categoryAverage;
+    }, 0);
+    
+    flat.averageRating = Math.round((totalRating / flat.totalReviews) * 10) / 10;
 
     await flat.save();
 
@@ -148,11 +188,19 @@ router.post('/:id/reviews', async (req, res) => {
           userEmail: user.email,
           userName: user.name,
           action: 'REVIEW_ADDED',
-          description: `Added review for flat: ${flat.title} in ${flat.location}`,
+          description: `Added enhanced review for flat: ${flat.title} in ${flat.location}`,
           metadata: {
             flatId: flat._id,
             flatTitle: flat.title,
             rating: rating,
+            overallRating: newReview.rating,
+            categoryRatings: {
+              cleanliness: newReview.cleanlinessRating,
+              location: newReview.locationRating,
+              valueForMoney: newReview.valueForMoneyRating,
+              landlord: newReview.landlordRating
+            },
+            wouldRecommend: newReview.wouldRecommend,
             reviewText: comment.substring(0, 100) + (comment.length > 100 ? '...' : '')
           },
           req
@@ -163,7 +211,7 @@ router.post('/:id/reviews', async (req, res) => {
     }
 
     res.status(201).json({ 
-      message: 'Review added successfully', 
+      message: 'Enhanced review added successfully', 
       review: newReview,
       averageRating: flat.averageRating,
       totalReviews: flat.totalReviews

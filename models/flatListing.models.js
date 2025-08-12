@@ -96,11 +96,69 @@ const flatListingSchema = new mongoose.Schema({
       min: 1,
       max: 5
     },
+    // Enhanced rating categories
+    cleanlinessRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5
+    },
+    locationRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5
+    },
+    valueForMoneyRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5
+    },
+    landlordRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 5
+    },
     comment: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
+      minlength: 10,
+      maxlength: 1000
     },
+    // Enhanced review fields
+    pros: {
+      type: String,
+      trim: true,
+      maxlength: 500
+    },
+    cons: {
+      type: String,
+      trim: true,
+      maxlength: 500
+    },
+    stayDuration: {
+      type: String,
+      enum: ['1-3 months', '3-6 months', '6-12 months', '1+ years', 'Visited only', ''],
+      default: ''
+    },
+    wouldRecommend: {
+      type: Boolean,
+      default: true
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    helpfulVotes: {
+      type: Number,
+      default: 0
+    },
+    photos: [{
+      type: String // URLs to uploaded photos
+    }],
     reviewDate: {
       type: Date,
       default: Date.now
