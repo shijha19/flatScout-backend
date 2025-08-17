@@ -211,6 +211,10 @@ class NotificationService {
       if (unreadOnly) {
         query.read = false;
       }
+      
+      // Only show notifications from the last 1 day (24 hours)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      query.createdAt = { $gte: oneDayAgo };
 
       const notifications = await Notification.find(query)
         .populate('metadata.fromUser', 'name email profileImage')
@@ -220,7 +224,11 @@ class NotificationService {
         .skip((page - 1) * limit);
 
       const total = await Notification.countDocuments(query);
-      const unreadCount = await Notification.countDocuments({ userId, read: false });
+      const unreadCount = await Notification.countDocuments({ 
+        userId, 
+        read: false,
+        createdAt: { $gte: oneDayAgo }
+      });
 
       return {
         notifications,
@@ -239,36 +247,39 @@ class NotificationService {
   }
 
   /**
-   * Mark notification as read
+   * Mark notification as read (delete it)
    */
   static async markAsRead(notificationId, userId) {
     try {
-      const notification = await Notification.findOneAndUpdate(
-        { _id: notificationId, userId },
-        { read: true, readAt: new Date() },
-        { new: true }
+      const notification = await Notification.findOneAndDelete(
+        { _id: notificationId, userId }
       );
 
       return notification;
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('Error deleting notification:', error);
       throw error;
     }
   }
 
   /**
-   * Mark all notifications as read for a user
+   * Mark all notifications as read for a user (delete them)
    */
   static async markAllAsRead(userId) {
     try {
-      const result = await Notification.updateMany(
-        { userId, read: false },
-        { read: true, readAt: new Date() }
+      // Only delete notifications from the last 1 day
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const result = await Notification.deleteMany(
+        { 
+          userId, 
+          read: false,
+          createdAt: { $gte: oneDayAgo }
+        }
       );
 
       return result;
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error('Error deleting all notifications:', error);
       throw error;
     }
   }
@@ -340,6 +351,24 @@ class NotificationService {
       return result;
     } catch (error) {
       console.error('Error cleaning up expired notifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up old notifications (older than 1 day)
+   */
+  static async cleanupOldNotifications() {
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const result = await Notification.deleteMany({
+        createdAt: { $lt: oneDayAgo }
+      });
+
+      console.log(`Cleaned up ${result.deletedCount} old notifications (older than 1 day)`);
+      return result;
+    } catch (error) {
+      console.error('Error cleaning up old notifications:', error);
       throw error;
     }
   }

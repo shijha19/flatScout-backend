@@ -94,15 +94,23 @@ wishlistSchema.methods.updateSnapshot = async function() {
     if (this.itemType === 'flat') {
       snapshot.title = this.item.title;
       snapshot.location = this.item.location?.address || this.item.location;
-      snapshot.price = this.item.rent;
-      snapshot.imageUrl = this.item.images?.[0];
-      snapshot.contactInfo = this.item.contactInfo?.phone;
+      snapshot.price = this.item.price; // Use 'price' instead of 'rent'
+      snapshot.image = this.item.image; // Use 'image' property
+      snapshot.imageUrl = this.item.image; // Also set imageUrl for backwards compatibility
+      snapshot.contactInfo = this.item.contactPhone;
     } else if (this.itemType === 'flatmate') {
-      snapshot.title = this.item.name || `${this.item.firstName} ${this.item.lastName}`;
-      snapshot.location = this.item.location?.preferredArea || this.item.currentLocation;
-      snapshot.price = this.item.budget?.max;
-      snapshot.imageUrl = this.item.profilePicture;
+      snapshot.name = this.item.name;
+      snapshot.title = this.item.name; // Also set title for backwards compatibility
+      snapshot.location = this.item.locationPreference || this.item.location;
+      snapshot.price = this.item.budget;
+      snapshot.photoUrl = this.item.photoUrl;
+      snapshot.imageUrl = this.item.photoUrl; // Set imageUrl for backwards compatibility
       snapshot.contactInfo = this.item.contactInfo?.phone;
+      // Additional flatmate-specific fields
+      snapshot.bio = this.item.bio;
+      snapshot.gender = this.item.gender;
+      snapshot.age = this.item.age;
+      snapshot.budget = this.item.budget;
     } else if (this.itemType === 'pg') {
       snapshot.title = this.item.name;
       snapshot.location = this.item.location?.address;

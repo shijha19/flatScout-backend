@@ -141,6 +141,16 @@ router.get('/profile/full/:userId', async (req, res) => {
     
     console.log('Final result - User:', user.name, 'Profile:', profile ? profile.name : 'No profile');
     
+    // Apply the same photo fallback logic as in the matches endpoint
+    if (profile) {
+      const profileObj = profile.toObject();
+      // If profile.photoUrl is missing or empty, use user's profileImage
+      if ((!profileObj.photoUrl || profileObj.photoUrl === '') && user.profileImage) {
+        profileObj.photoUrl = user.profileImage;
+      }
+      profile = profileObj;
+    }
+    
     res.json({
       user: user,
       profile: profile

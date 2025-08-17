@@ -32,7 +32,7 @@ router.get('/notifications', async (req, res) => {
   }
 });
 
-// Mark notification as read
+// Mark notification as read (delete it)
 router.put('/notifications/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
@@ -53,14 +53,14 @@ router.put('/notifications/:id/read', async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
-    res.json({ message: 'Notification marked as read', notification });
+    res.json({ message: 'Notification deleted', notification });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    console.error('Error deleting notification:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Mark all notifications as read
+// Mark all notifications as read (delete them)
 router.put('/notifications/read-all', async (req, res) => {
   try {
     const { userEmail } = req.body;
@@ -76,9 +76,9 @@ router.put('/notifications/read-all', async (req, res) => {
     }
 
     const result = await NotificationService.markAllAsRead(user._id);
-    res.json({ message: 'All notifications marked as read', modifiedCount: result.modifiedCount });
+    res.json({ message: 'All notifications deleted', deletedCount: result.deletedCount });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    console.error('Error deleting all notifications:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -169,5 +169,19 @@ if (process.env.NODE_ENV !== 'production') {
     }
   });
 }
+
+// Cleanup old notifications (older than 1 day)
+router.post('/cleanup-old', async (req, res) => {
+  try {
+    const result = await NotificationService.cleanupOldNotifications();
+    res.json({ 
+      message: 'Old notifications cleanup completed', 
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error('Error cleaning up old notifications:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 export default router;
