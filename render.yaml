@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: flatscout-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true
+    # Add your environment variables in Render dashboard
+    # MONGO_URI, JWT_SECRET, FRONTEND_URL, etc.
