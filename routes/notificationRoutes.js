@@ -6,15 +6,11 @@ const router = express.Router();
 
 // Get user notifications
 router.get('/notifications', async (req, res) => {
-  // Ensure we always return JSON
-  res.setHeader('Content-Type', 'application/json');
-  
   try {
-    console.log('Notification request received:', req.query);
     const { userEmail, page = 1, limit = 20, unreadOnly = false } = req.query;
 
     if (!userEmail) {
-      return res.status(400).json({ message: 'User email is required', success: false });
+      return res.status(400).json({ message: 'User email is required' });
     }
 
     // Find user by email
@@ -29,31 +25,21 @@ router.get('/notifications', async (req, res) => {
       unreadOnly: unreadOnly === 'true'
     });
 
-    console.log('Notifications fetched successfully:', result.notifications?.length || 0);
-    res.json({ success: true, ...result });
+    res.json(result);
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    // Ensure we return proper JSON error
-    return res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // Mark notification as read (delete it)
 router.put('/notifications/:id/read', async (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  
   try {
-    console.log('Mark notification as read:', req.params.id);
     const { id } = req.params;
     const { userEmail } = req.body;
 
     if (!userEmail) {
-      return res.status(400).json({ message: 'User email is required', success: false });
+      return res.status(400).json({ message: 'User email is required' });
     }
 
     // Find user by email
@@ -67,15 +53,10 @@ router.put('/notifications/:id/read', async (req, res) => {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
-    res.json({ success: true, message: 'Notification deleted', notification });
+    res.json({ message: 'Notification deleted', notification });
   } catch (error) {
     console.error('Error deleting notification:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
