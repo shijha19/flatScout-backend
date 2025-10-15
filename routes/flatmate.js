@@ -179,9 +179,21 @@ router.post('/profile/:userId', async (req, res) => {
 
 // Get matches for a user, show all cards except own and already connected users
 router.get('/matches/:userId', async (req, res) => {
+  // Ensure proper JSON response headers
+  res.setHeader('Content-Type', 'application/json');
+  
   try {
     const userId = req.params.userId;
     const userEmail = req.query.userEmail;
+    
+    // Validate input
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      return res.status(400).json({ 
+        error: 'Invalid userId provided',
+        userId: userId,
+        userEmail: userEmail 
+      });
+    }
     
     // First, find the current user to get their connections
     let currentUser = null;
@@ -260,9 +272,17 @@ router.get('/matches/:userId', async (req, res) => {
 
     // Filter out null values (connected users or deleted users that were skipped)
     const finalProfiles = enhancedProfiles.filter(profile => profile !== null);
+    
+    console.log(`Matches endpoint returning ${finalProfiles.length} profiles for user ${userId}`);
     res.json(finalProfiles);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error in matches endpoint:', err);
+    res.status(500).json({ 
+      error: err.message,
+      userId: req.params.userId,
+      userEmail: req.query.userEmail,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

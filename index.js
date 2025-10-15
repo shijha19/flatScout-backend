@@ -21,6 +21,7 @@ import syncRoutes from './routes/syncRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
+import prodDebugRoutes from './routes/prodDebugRoutes.js';
 import { createTestConnections } from './controllers/testController.js';
 import './config/passport.js';
 dotenv.config();
@@ -100,6 +101,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api', debugRoutes);
+app.use('/api', prodDebugRoutes);
 
 // Development-only test endpoints
 if (process.env.NODE_ENV !== 'production') {
