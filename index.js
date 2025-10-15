@@ -22,6 +22,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import prodDebugRoutes from './routes/prodDebugRoutes.js';
+import productionRoutes from './routes/productionRoutes.js';
 import { createTestConnections } from './controllers/testController.js';
 import './config/passport.js';
 dotenv.config();
@@ -55,6 +56,8 @@ const corsOptions = {
     }
     
     console.log('CORS blocked origin:', origin);
+    console.log('Allowed origins:', allowedOrigins);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -102,6 +105,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api', debugRoutes);
 app.use('/api', prodDebugRoutes);
+app.use('/api', productionRoutes);
 
 // Development-only test endpoints
 if (process.env.NODE_ENV !== 'production') {
