@@ -132,8 +132,16 @@ router.post('/push/unsubscribe', async (req, res) => {
 
 // Get VAPID public key
 router.get('/vapid-public-key', (req, res) => {
+  const publicKey = NotificationService.getVapidPublicKey();
+
+  if (!publicKey) {
+    return res.status(503).json({
+      message: 'Push notifications are not configured on the server'
+    });
+  }
+
   res.json({ 
-    publicKey: process.env.VAPID_PUBLIC_KEY || 'BP8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8'
+    publicKey
   });
 });
 

@@ -10,7 +10,26 @@ const createTransporter = () => {
     console.warn('⚠️  Email configuration not found. Emails will not be sent.');
     return null;
   }
-  
+
+  const smtpHost = process.env.EMAIL_HOST;
+  const smtpPort = Number(process.env.EMAIL_PORT || 587);
+  const smtpSecure = String(process.env.EMAIL_SECURE || '').toLowerCase() === 'true' || smtpPort === 465;
+
+  if (smtpHost) {
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+  }
+
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {

@@ -4,14 +4,34 @@ import PushSubscription from '../models/pushSubscription.models.js';
 import User from '../models/user.models.js';
 import { sendEmail } from './emailService.js';
 
-// Configure web-push with VAPID keys
-webpush.setVapidDetails(
-  'mailto:support@flatscout.com',
-  process.env.VAPID_PUBLIC_KEY || 'BP8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8',
-  process.env.VAPID_PRIVATE_KEY || 'VGhpcyBpcyBhIGZha2UgcHJpdmF0ZSBrZXkgZm9yIGRldmVsb3BtZW50'
-);
+let pushEnabled = false;
+
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidContact = process.env.VAPID_CONTACT_EMAIL || 'mailto:support@flatscout.com';
+
+if (vapidPublicKey && vapidPrivateKey) {
+  try {
+    webpush.setVapidDetails(vapidContact, vapidPublicKey, vapidPrivateKey);
+    pushEnabled = true;
+    console.log('Push notifications enabled with VAPID configuration');
+  } catch (error) {
+    pushEnabled = false;
+    console.error('Invalid VAPID configuration. Push notifications disabled:', error.message);
+  }
+} else {
+  console.warn('VAPID keys are missing. Push notifications are disabled.');
+}
 
 class NotificationService {
+  static isPushEnabled() {
+    return pushEnabled;
+  }
+
+  static getVapidPublicKey() {
+    return pushEnabled ? vapidPublicKey : null;
+  }
+
   /**
    * Create and send a notification to a user
    */
@@ -91,6 +111,10 @@ class NotificationService {
    */
   static async sendPushNotification(userId, payload) {
     try {
+      if (!pushEnabled) {
+        return false;
+      }
+
       const subscriptions = await PushSubscription.find({ 
         userId, 
         active: true 
