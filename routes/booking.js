@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Booking from '../models/booking.models.js';
 import User from '../models/user.models.js';
 import FlatListing from '../models/flatListing.models.js';
@@ -112,6 +113,10 @@ router.post('/create', async (req, res) => {
     // Validate required fields
     if (!flatId || !ownerEmail || !date || !timeSlot || !visitorName || !visitorEmail || !visitorPhone || !purpose) {
       return res.status(400).json({ message: 'All required fields must be provided' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(flatId)) {
+      return res.status(400).json({ message: 'Please select a valid property before creating a booking' });
     }
 
     // Validate that the booking date is not in the past
