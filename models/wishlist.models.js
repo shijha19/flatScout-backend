@@ -1,5 +1,46 @@
 import mongoose from 'mongoose';
 
+const normalizePriceValue = (value) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const cleaned = value.toLowerCase().trim().replace(/[₹,$\s]/g, '');
+  if (!cleaned) {
+    return undefined;
+  }
+
+  const compactMatch = cleaned.match(/^(\d+(?:\.\d+)?)(k|l|m|thousand|lakh|lac|cr|crore)(?:\/.*)?$/);
+  if (compactMatch) {
+    const amount = Number(compactMatch[1]);
+    const unit = compactMatch[2];
+    const multipliers = {
+      k: 1000,
+      thousand: 1000,
+      l: 100000,
+      lakh: 100000,
+      lac: 100000,
+      m: 1000000,
+      cr: 10000000,
+      crore: 10000000
+    };
+
+    return Number.isFinite(amount) ? amount * multipliers[unit] : undefined;
+  }
+
+  const numericMatch = cleaned.match(/\d+(?:\.\d+)?/);
+  if (!numericMatch) {
+    return undefined;
+  }
+
+  const parsed = Number(numericMatch[0]);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 const wishlistSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -94,7 +135,7 @@ wishlistSchema.methods.updateSnapshot = async function() {
     if (this.itemType === 'flat') {
       snapshot.title = this.item.title;
       snapshot.location = this.item.location?.address || this.item.location;
-      snapshot.price = this.item.price; // Use 'price' instead of 'rent'
+      snapshot.price = normalizePriceValue(this.item.price); // Store a numeric price for wishlist sorting/display
       snapshot.image = this.item.image; // Use 'image' property
       snapshot.imageUrl = this.item.image; // Also set imageUrl for backwards compatibility
       snapshot.contactInfo = this.item.contactPhone;
@@ -102,7 +143,7 @@ wishlistSchema.methods.updateSnapshot = async function() {
       snapshot.name = this.item.name;
       snapshot.title = this.item.name; // Also set title for backwards compatibility
       snapshot.location = this.item.locationPreference || this.item.location;
-      snapshot.price = this.item.budget;
+      snapshot.price = normalizePriceValue(this.item.budget);
       snapshot.photoUrl = this.item.photoUrl;
       snapshot.imageUrl = this.item.photoUrl; // Set imageUrl for backwards compatibility
       snapshot.contactInfo = this.item.contactInfo?.phone;
@@ -114,9 +155,13 @@ wishlistSchema.methods.updateSnapshot = async function() {
     } else if (this.itemType === 'pg') {
       snapshot.title = this.item.name;
       snapshot.location = this.item.location?.address;
-      snapshot.price = this.item.pricing?.monthly;
+      snapshot.price = normalizePriceValue(this.item.pricing?.monthly);
       snapshot.imageUrl = this.item.images?.[0];
       snapshot.contactInfo = this.item.contactInfo?.phone;
+    }
+
+    if (snapshot.price === undefined) {
+      delete snapshot.price;
     }
     
     this.itemSnapshot = snapshot;
