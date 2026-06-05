@@ -183,33 +183,40 @@ router.post('/create', async (req, res) => {
     const populatedBooking = await Booking.findById(savedBooking._id)
       .populate('flatId', 'title location rent images');
 
-    // Send email notifications
-    try {
-      const bookingDetails = {
-        visitorName,
-        visitorEmail,
-        visitorPhone,
-        flatTitle: flat.title,
-        flatLocation: flat.location,
-        date,
-        timeSlot,
-        purpose,
-        notes,
-        ownerEmail
-      };
+    // Send email notifications in the background so booking creation is not blocked
+    const bookingDetails = {
+      visitorName,
+      visitorEmail,
+      visitorPhone,
+      flatTitle: flat.title,
+      flatLocation: flat.location,
+      date,
+      timeSlot,
+      purpose,
+      notes,
+      ownerEmail
+    };
 
-      // Send notification to flat owner
-      const ownerNotification = await sendBookingNotification(ownerEmail, bookingDetails);
-      console.log('Owner notification result:', ownerNotification);
+    setImmediate(() => {
+      Promise.allSettled([
+        sendBookingNotification(ownerEmail, bookingDetails),
+        sendBookingConfirmation(visitorEmail, bookingDetails)
+      ]).then(([ownerResult, visitorResult]) => {
+        if (ownerResult.status === 'fulfilled') {
+          console.log('Owner notification result:', ownerResult.value);
+        } else {
+          console.error('Owner notification failed:', ownerResult.reason);
+        }
 
-      // Send confirmation to visitor
-      const visitorConfirmation = await sendBookingConfirmation(visitorEmail, bookingDetails);
-      console.log('Visitor confirmation result:', visitorConfirmation);
-
-    } catch (emailError) {
-      console.error('Email notification error:', emailError);
-      // Don't fail the booking creation if email fails
-    }
+        if (visitorResult.status === 'fulfilled') {
+          console.log('Visitor confirmation result:', visitorResult.value);
+        } else {
+          console.error('Visitor confirmation failed:', visitorResult.reason);
+        }
+      }).catch(error => {
+        console.error('Unexpected email queue error:', error);
+      });
+    });
 
     res.status(201).json({
       success: true,
